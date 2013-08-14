@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
   spec.homepage      = "http://github.com/cloudfoundry/narc-cf-plugin"
   spec.license       = "Apache 2.0"
 
-  spec.files         = `git ls-files -- lib/* vendor/*`.split("\n") + %w(README.md)
+  spec.files         = `git ls-files -- lib/* vendor/*`.split("\n")
   spec.require_paths = ["lib", "vendor"]
 
   spec.required_ruby_version = Gem::Requirement.new(">= 1.9.3")

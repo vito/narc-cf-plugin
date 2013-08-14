@@ -1,7 +1,11 @@
 require 'cf'
 
 module NarcCfPlugin
-  require 'narc-cf-plugin/narc'
+  begin
+    require 'narc-cf-plugin/narc'
+  rescue LoadError
+    require 'narc-cf-plugin/narc_sucky'
+  end
 
   class Plugin < CF::CLI
     include LoginRequirements
@@ -9,11 +13,19 @@ module NarcCfPlugin
     def precondition; end
 
     desc "Application narc... we tell everything"
-    input :task, :argument => :required
-    input :secure_token, :argument => :optional, :default => ""
+    input :app, :argument => :required, :from_given => by_name(:app)
     def narc
-      narc = Narc.new("127.0.0.1", 8082, input[:task])
-      narc.listen(input[:task], input[:secure_token])
+      app = input[:app]
+
+      task_response = client.base.post(
+        "v2", "tasks",
+        :content => :json, :accept => :json,
+        :payload => { :app_guid => app.guid })
+
+      narc_host = client.target.gsub(/https?:\/\/(.*)\/?/, '\1')
+      narc = Narc.new(client.target, 8080, task_response[:metadata][:guid])
+
+      narc.connect(task_response[:metadata][:guid], task_response[:entity][:secure_token])
     end
   end
 end
