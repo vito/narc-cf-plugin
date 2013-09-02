@@ -22,10 +22,15 @@ module NarcCfPlugin
         :content => :json, :accept => :json,
         :payload => { :app_guid => app.guid })
 
-      narc_host = client.target.gsub(/https?:\/\/(.*)\/?/, '\1')
-      narc = Narc.new(client.target, 8080, task_response[:metadata][:guid])
+      task_guid = task_response[:metadata][:guid]
+      task_token = task_response[:entity][:secure_token]
 
-      narc.connect(task_response[:metadata][:guid], task_response[:entity][:secure_token])
+      narc_host = client.target.gsub(/https?:\/\/(.*)\/?/, '\1')
+      narc = Narc.new(client.target, 4443, task_guid)
+
+      narc.connect(task_guid, task_token)
+    ensure
+      client.base.delete("v2", "tasks", task_guid) if task_guid
     end
   end
 end

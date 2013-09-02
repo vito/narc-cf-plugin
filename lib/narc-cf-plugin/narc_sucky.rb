@@ -1,5 +1,4 @@
 require "net/ssh"
-require "pry"
 require "highline"
  
 module NarcCfPlugin
@@ -34,19 +33,44 @@ module NarcCfPlugin
       `stty -raw echo`
     end
      
+    module SSL2TCP
+      def write(str)
+        syswrite(str)
+      end
+
+      def send(data, flags = 0)
+        raise "cannot handle flags #{flags}" unless flags == 0
+        write(data)
+      end
+
+      def recv(len)
+        sysread(len)
+      end
+    end
+
     class TCPForwardedSSHSocket
       def initialize(task_id)
         @task_id = task_id
       end
 
       def open(host, port)
-        TCPSocket.open(host, port).tap do |sock|
-          sock.write("GET / HTTP/1.1\r\n")
-          sock.write("Host: #{@task_id}\r\n")
-          sock.write("Upgrade: tcp\r\n")
-          sock.write("Connection: Upgrade\r\n")
-          sock.write("\r\n")
-          sock.write("\r\n")
+        sock = TCPSocket.open(host, port)
+
+        ctx = OpenSSL::SSL::SSLContext.new
+        ctx.set_params(verify_mode: OpenSSL::SSL::VERIFY_NONE)
+
+        OpenSSL::SSL::SSLSocket.new(sock, ctx).tap do |socket|
+          socket.extend(SSL2TCP)
+
+          socket.sync_close = true
+          socket.connect
+
+          socket.write("GET / HTTP/1.1\r\n")
+          socket.write("Host: #{@task_id}\r\n")
+          socket.write("Upgrade: tcp\r\n")
+          socket.write("Connection: Upgrade\r\n")
+          socket.write("\r\n")
+          socket.write("\r\n")
         end
       end
     end

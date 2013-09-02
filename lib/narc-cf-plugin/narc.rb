@@ -97,6 +97,8 @@ module NarcCfPlugin
 
     class TCPForwardedSSHConnection < EM::Ssh::Connection
       def post_init
+        start_tls
+
         send_data("GET / HTTP/1.1\r\n")
         send_data("Host: #{@options[:host]}\r\n")
         send_data("Upgrade: tcp\r\n")
