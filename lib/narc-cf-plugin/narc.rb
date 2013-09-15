@@ -4,10 +4,13 @@ require "highline"
 
 module NarcCfPlugin
   class Narc
-    def initialize(host, port, task_id)
+    def initialize(host, task_id, use_ssl)
       @host = host
-      @port = port
       @task_id = task_id
+      @use_ssl = use_ssl
+
+      @port = use_ssl ? 4443 : 80
+
       @connection_attempts = 0
     end
 
@@ -15,11 +18,10 @@ module NarcCfPlugin
       @connection_attempts += 1
 
       EM.run do
-        EM.connect(@host, @port, TCPForwardedSSHConnection,
+        EM.connect(@host, @port, connection,
                     :user => task, :password => secure_token, :host => @task_id,
                     :auth_methods => %w[password]) do |connection|
           connection.errback do |err|
-            # $stderr.puts "#{err.class}: #{err}"
             EM.stop
             raise err
           end
@@ -56,6 +58,16 @@ module NarcCfPlugin
         retry
       else
         raise
+      end
+    end
+
+    private
+
+    def connection
+      if @use_ssl
+        SSLEncryptedTCPForwardedSSHConnection
+      else
+        TCPForwardedSSHConnection
       end
     end
 
@@ -97,8 +109,6 @@ module NarcCfPlugin
 
     class TCPForwardedSSHConnection < EM::Ssh::Connection
       def post_init
-        start_tls
-
         send_data("GET / HTTP/1.1\r\n")
         send_data("Host: #{@options[:host]}\r\n")
         send_data("Upgrade: tcp\r\n")
@@ -106,6 +116,13 @@ module NarcCfPlugin
         send_data("\r\n")
         send_data("\r\n")
 
+        super
+      end
+    end
+
+    class SSLEncryptedTCPForwardedSSHConnection < TCPForwardedSSHConnection
+      def post_init
+        start_tls
         super
       end
     end

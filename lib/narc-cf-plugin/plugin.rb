@@ -26,11 +26,17 @@ module NarcCfPlugin
       task_token = task_response[:entity][:secure_token]
 
       narc_host = client.target.gsub(/https?:\/\/(.*)\/?/, '\1')
-      narc = Narc.new(client.target, 4443, task_guid)
+      narc = Narc.new(client.target, task_guid, use_ssl?)
 
       narc.connect(task_guid, task_token)
     ensure
       client.base.delete("v2", "tasks", task_guid) if task_guid
+    end
+
+    private
+
+    def use_ssl?
+      client.target.start_with?("https")
     end
   end
 end
